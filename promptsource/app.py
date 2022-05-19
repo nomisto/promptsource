@@ -262,16 +262,18 @@ def run_app(state):
         #
 
         dataset_list = list_datasets()
-        ag_news_index = dataset_list.index("ag_news")
+        dataset_names = list(dataset_list.keys())
+        dataset_names.sort(key=lambda x: x.lower())
+        an_em_index = dataset_names.index("an_em")
 
         #
         # Select a dataset - starts with ag_news
         #
         dataset_key = st.sidebar.selectbox(
             "Dataset",
-            dataset_list,
+            dataset_names,
             key="dataset_select",
-            index=ag_news_index,
+            index=an_em_index,
             help="Select the dataset to work on.",
         )
 
@@ -283,14 +285,14 @@ def run_app(state):
             #
             # Check for subconfigurations (i.e. subsets)
             #
-            configs = get_dataset_confs(dataset_key)
+            configs = get_dataset_confs(dataset_list[dataset_key])
             conf_option = None
             if len(configs) > 0:
                 conf_option = st.sidebar.selectbox("Subset", configs, index=0, format_func=lambda a: a.name)
 
             subset_name = str(conf_option.name) if conf_option else None
             try:
-                dataset = get_dataset(dataset_key, subset_name)
+                dataset = get_dataset(dataset_list[dataset_key], subset_name)
             except OSError as e:
                 st.error(
                     f"Some datasets are not handled automatically by `datasets` and require users to download the "
@@ -378,7 +380,7 @@ def run_app(state):
                     split_dataset_key[-1],
                 )
             else:
-                source_link = "https://github.com/huggingface/datasets/blob/master/datasets/%s/%s.py" % (
+                source_link = "https://github.com/bigscience-workshop/biomedical/blob/master/bigbio/biodatasets/%s/%s.py" % (
                     dataset_key,
                     dataset_key,
                 )
