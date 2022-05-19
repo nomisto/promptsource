@@ -31,10 +31,6 @@ from promptsource.utils import (
 # so we make sure we always use spawn for consistency
 multiprocessing.set_start_method("spawn", force=True)
 
-@st.cache(allow_output_mutation=True)
-def get_manager():
-    return stx.CookieManager()
-
 def get_infos(all_infos, d_name):
     """
     Wrapper for mutliprocess-loading of dataset infos
@@ -42,7 +38,9 @@ def get_infos(all_infos, d_name):
     :param all_infos: multiprocess-safe dictionary
     :param d_name: dataset name
     """
-    all_infos[d_name] = get_dataset_infos(d_name)
+    from bigbio.dataloader import BigBioConfigHelpers
+    conhelps = BigBioConfigHelpers()
+    all_infos[d_name] = get_dataset_infos(conhelps.default_for_dataset(d_name).script)
 
 
 # add an argument for read-only
@@ -184,7 +182,9 @@ def run_app(state):
         for (dataset_name, subset_name) in template_collection.keys:
             # Collect split sizes (train, validation and test)
             if dataset_name not in all_infos:
-                infos = get_dataset_infos(dataset_name)
+                from bigbio.dataloader import BigBioConfigHelpers
+                conhelps = BigBioConfigHelpers()
+                infos = get_dataset_infos(conhelps.default_for_dataset(dataset_name).script)
                 all_infos[dataset_name] = infos
             else:
                 infos = all_infos[dataset_name]
