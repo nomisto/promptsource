@@ -53,10 +53,10 @@ parser.add_argument("-r", "--read-only", action="store_true", help="whether to r
 
 args = parser.parse_args()
 if args.read_only:
-    select_options = ["Prompted dataset viewer", "Helicopter view"]
+    select_options = ["Helicopter view", "Prompted dataset viewer"]
     side_bar_title_prefix = "Promptsource (Read only)"
 else:
-    select_options = ["Prompted dataset viewer", "Sourcing", "Helicopter view"]
+    select_options = ["Helicopter view", "Prompted dataset viewer", "Sourcing"]
     side_bar_title_prefix = "Promptsource"
 
 #
