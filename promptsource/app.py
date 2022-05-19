@@ -1,4 +1,5 @@
 import argparse
+from configparser import ConfigParser
 import functools
 import multiprocessing
 import textwrap
@@ -52,10 +53,10 @@ parser.add_argument("-r", "--read-only", action="store_true", help="whether to r
 
 args = parser.parse_args()
 if args.read_only:
-    select_options = ["Helicopter view", "Prompted dataset viewer"]
+    select_options = ["Prompted dataset viewer", "Helicopter view"]
     side_bar_title_prefix = "Promptsource (Read only)"
 else:
-    select_options = ["Helicopter view", "Prompted dataset viewer", "Sourcing"]
+    select_options = ["Prompted dataset viewer", "Sourcing", "Helicopter view"]
     side_bar_title_prefix = "Promptsource"
 
 #
@@ -65,12 +66,22 @@ get_dataset = st.cache(allow_output_mutation=True)(get_dataset)
 get_dataset_confs = st.cache(get_dataset_confs)
 list_datasets = st.cache(list_datasets)
 
+creds = ConfigParser()
+creds.read("cred.cfg")
+user_ = creds.get("authentication", "username")
+password_ = creds.get("authentication", "password")
 
-def run_app():
-    #
-    # Loads session state
-    #
-    state = _get_state()
+def is_authenticated(user, password):
+    if (user == user_ and password == password_):
+        return True
+    else:
+        return False
+
+def linespace_generator(n_spaces=1):
+    for i in range(n_spaces):
+        st.write("")
+
+def run_app(state):
 
     def reset_template_state():
         state.template_name = None
@@ -80,7 +91,6 @@ def run_app():
     #
     # Initial page setup
     #
-    st.set_page_config(page_title="Promptsource", layout="wide")
     st.sidebar.markdown(
         "<center><a href='https://github.com/bigscience-workshop/promptsource'>💻Github - Promptsource\n\n</a></center>",
         unsafe_allow_html=True,
@@ -637,4 +647,17 @@ def run_app():
 
 
 if __name__ == "__main__":
-    run_app()
+    state = _get_state()
+    st.set_page_config(page_title="Promptsource", layout="wide")
+    if not state.authenticated:
+        with st.form(key='my_form'): 
+            state.user = st.text_input('Username', key='user', value="")
+            state.password = st.text_input('Password', type="password", value="")
+            submit = st.form_submit_button('Login')
+            if submit:
+                state.authenticated = is_authenticated(state.user, state.password) and submit
+                state.sync()
+                if not state.authenticated:
+                    st.info("Please check your credentials")
+    else:
+        run_app(state)
