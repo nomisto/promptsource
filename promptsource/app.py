@@ -56,7 +56,7 @@ if args.read_only:
     select_options = ["Helicopter view", "Prompted dataset viewer"]
     side_bar_title_prefix = "Promptsource (Read only)"
 else:
-    select_options = ["Helicopter view", "Prompted dataset viewer", "Sourcing"]
+    select_options = ["Prompted dataset viewer", "Sourcing", "Helicopter view"]
     side_bar_title_prefix = "Promptsource"
 
 #
@@ -651,15 +651,15 @@ def run_app(state):
 if __name__ == "__main__":
     state = _get_state()
     st.set_page_config(page_title="Promptsource", layout="wide")
-    if not state.authenticated:
-        with st.form(key='my_form'): 
-            state.user = st.text_input('Username', key='user', value="")
-            state.password = st.text_input('Password', type="password", value="")
-            submit = st.form_submit_button('Login')
-            if submit:
-                state.authenticated = is_authenticated(state.user, state.password) and submit
-                state.sync()
-                if not state.authenticated:
-                    st.info("Please check your credentials")
+    if not state.authenticated: 
+        state.user = st.text_input('Username', key='user', value="")
+        state.password = st.text_input('Password', type="password", value="")
+        state.authenticated = is_authenticated(state.user, state.password)
+        state.sync()
+        login = st.button('Login')
+        if 'login' not in locals():
+            login = False
+        if login and not state.authenticated:
+            st.info("Please check your credentials")
     else:
         run_app(state)
