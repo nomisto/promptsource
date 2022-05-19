@@ -31,6 +31,9 @@ from promptsource.utils import (
 # so we make sure we always use spawn for consistency
 multiprocessing.set_start_method("spawn", force=True)
 
+@st.cache(allow_output_mutation=True)
+def get_manager():
+    return stx.CookieManager()
 
 def get_infos(all_infos, d_name):
     """
@@ -53,7 +56,7 @@ parser.add_argument("-r", "--read-only", action="store_true", help="whether to r
 
 args = parser.parse_args()
 if args.read_only:
-    select_options = ["Helicopter view", "Prompted dataset viewer"]
+    select_options = ["Prompted dataset viewer", "Helicopter view"]
     side_bar_title_prefix = "Promptsource (Read only)"
 else:
     select_options = ["Prompted dataset viewer", "Sourcing", "Helicopter view"]
@@ -651,12 +654,13 @@ def run_app(state):
 if __name__ == "__main__":
     state = _get_state()
     st.set_page_config(page_title="Promptsource", layout="wide")
+
     if not state.authenticated: 
         state.user = st.text_input('Username', key='user', value="")
         state.password = st.text_input('Password', type="password", value="")
+        login = st.button('Login')
         state.authenticated = is_authenticated(state.user, state.password)
         state.sync()
-        login = st.button('Login')
         if 'login' not in locals():
             login = False
         if login and not state.authenticated:
