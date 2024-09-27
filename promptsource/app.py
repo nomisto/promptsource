@@ -1,4 +1,5 @@
 import argparse
+from configparser import ConfigParser
 import functools
 import multiprocessing
 import textwrap
@@ -30,7 +31,6 @@ from promptsource.utils import (
 # so we make sure we always use spawn for consistency
 multiprocessing.set_start_method("spawn", force=True)
 
-
 def get_infos(all_infos, d_name):
     """
     Wrapper for mutliprocess-loading of dataset infos
@@ -38,7 +38,9 @@ def get_infos(all_infos, d_name):
     :param all_infos: multiprocess-safe dictionary
     :param d_name: dataset name
     """
-    all_infos[d_name] = get_dataset_infos(d_name)
+    from bigbio.dataloader import BigBioConfigHelpers
+    conhelps = BigBioConfigHelpers()
+    all_infos[d_name] = get_dataset_infos(conhelps.default_for_dataset(d_name).script)
 
 
 # add an argument for read-only
@@ -52,10 +54,10 @@ parser.add_argument("-r", "--read-only", action="store_true", help="whether to r
 
 args = parser.parse_args()
 if args.read_only:
-    select_options = ["Helicopter view", "Prompted dataset viewer"]
+    select_options = ["Prompted dataset viewer", "Helicopter view"]
     side_bar_title_prefix = "Promptsource (Read only)"
 else:
-    select_options = ["Helicopter view", "Prompted dataset viewer", "Sourcing"]
+    select_options = ["Prompted dataset viewer", "Sourcing", "Helicopter view"]
     side_bar_title_prefix = "Promptsource"
 
 #
@@ -65,12 +67,22 @@ get_dataset = st.cache(allow_output_mutation=True)(get_dataset)
 get_dataset_confs = st.cache(get_dataset_confs)
 list_datasets = st.cache(list_datasets)
 
+creds = ConfigParser()
+creds.read("cred.cfg")
+user_ = creds.get("authentication", "username")
+password_ = creds.get("authentication", "password")
 
-def run_app():
-    #
-    # Loads session state
-    #
-    state = _get_state()
+def is_authenticated(user, password):
+    if (user == user_ and password == password_):
+        return True
+    else:
+        return False
+
+def linespace_generator(n_spaces=1):
+    for i in range(n_spaces):
+        st.write("")
+
+def run_app(state):
 
     def reset_template_state():
         state.template_name = None
@@ -80,7 +92,6 @@ def run_app():
     #
     # Initial page setup
     #
-    st.set_page_config(page_title="Promptsource", layout="wide")
     st.sidebar.markdown(
         "<center><a href='https://github.com/bigscience-workshop/promptsource'>💻Github - Promptsource\n\n</a></center>",
         unsafe_allow_html=True,
@@ -171,7 +182,9 @@ def run_app():
         for (dataset_name, subset_name) in template_collection.keys:
             # Collect split sizes (train, validation and test)
             if dataset_name not in all_infos:
-                infos = get_dataset_infos(dataset_name)
+                from bigbio.dataloader import BigBioConfigHelpers
+                conhelps = BigBioConfigHelpers()
+                infos = get_dataset_infos(conhelps.default_for_dataset(dataset_name).script)
                 all_infos[dataset_name] = infos
             else:
                 infos = all_infos[dataset_name]
@@ -252,16 +265,18 @@ def run_app():
         #
 
         dataset_list = list_datasets()
-        ag_news_index = dataset_list.index("ag_news")
+        dataset_names = list(dataset_list.keys())
+        dataset_names.sort(key=lambda x: x.lower())
+        an_em_index = dataset_names.index("an_em")
 
         #
         # Select a dataset - starts with ag_news
         #
         dataset_key = st.sidebar.selectbox(
             "Dataset",
-            dataset_list,
+            dataset_names,
             key="dataset_select",
-            index=ag_news_index,
+            index=an_em_index,
             help="Select the dataset to work on.",
         )
 
@@ -273,14 +288,14 @@ def run_app():
             #
             # Check for subconfigurations (i.e. subsets)
             #
-            configs = get_dataset_confs(dataset_key)
+            configs = get_dataset_confs(dataset_list[dataset_key])
             conf_option = None
             if len(configs) > 0:
                 conf_option = st.sidebar.selectbox("Subset", configs, index=0, format_func=lambda a: a.name)
 
             subset_name = str(conf_option.name) if conf_option else None
             try:
-                dataset = get_dataset(dataset_key, subset_name)
+                dataset = get_dataset(dataset_list[dataset_key], subset_name)
             except OSError as e:
                 st.error(
                     f"Some datasets are not handled automatically by `datasets` and require users to download the "
@@ -368,7 +383,7 @@ def run_app():
                     split_dataset_key[-1],
                 )
             else:
-                source_link = "https://github.com/huggingface/datasets/blob/master/datasets/%s/%s.py" % (
+                source_link = "https://github.com/bigscience-workshop/biomedical/blob/master/bigbio/biodatasets/%s/%s.py" % (
                     dataset_key,
                     dataset_key,
                 )
@@ -637,4 +652,18 @@ def run_app():
 
 
 if __name__ == "__main__":
-    run_app()
+    state = _get_state()
+    st.set_page_config(page_title="Promptsource", layout="wide")
+
+    if not state.authenticated: 
+        state.user = st.text_input('Username', key='user', value="")
+        state.password = st.text_input('Password', type="password", value="")
+        login = st.button('Login')
+        state.authenticated = is_authenticated(state.user, state.password)
+        state.sync()
+        if 'login' not in locals():
+            login = False
+        if login and not state.authenticated:
+            st.info("Please check your credentials")
+    else:
+        run_app(state)

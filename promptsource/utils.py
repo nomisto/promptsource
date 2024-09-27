@@ -1,6 +1,8 @@
 # coding=utf-8
 import os
 
+from bigbio.dataloader import BigBioConfigHelpers
+
 import datasets
 import requests
 
@@ -31,7 +33,6 @@ def renameDatasetColumn(dataset):
 #
 # Helper functions for datasets library
 #
-
 
 def get_dataset_builder(path, conf=None):
     "Get a dataset builder from name and conf."
@@ -141,9 +142,16 @@ def filter_english_datasets():
 
     return sorted(english_datasets)
 
-
 def list_datasets():
     """Get all the datasets to work with."""
-    dataset_list = filter_english_datasets()
-    dataset_list.sort(key=lambda x: x.lower())
+    conhelps = BigBioConfigHelpers()
+    dataset_list = {                                                 
+        helper.dataset_name: helper.script
+        for helper in (
+            conhelps
+            .filtered(lambda x: not x.is_large)
+            .filtered(lambda x: x.is_bigbio_schema)
+            .filtered(lambda x: not x.is_local)
+        )
+    }
     return dataset_list
